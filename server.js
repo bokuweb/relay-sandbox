@@ -1,49 +1,16 @@
-import express from 'express';
-import graphQLHTTP from 'express-graphql';
-import path from 'path';
-import webpack from 'webpack';
-import WebpackDevServer from 'webpack-dev-server';
-import {Schema} from './data/schema';
+var express = require('express')
+var graphqlHttp = require('express-graphql')
+var schema = require('./schema/schema')
 
-const APP_PORT = 3000;
-const GRAPHQL_PORT = 8080;
+// The server is just a simple Express app
+var app = express()
 
-// Expose a GraphQL endpoint
-var graphQLServer = express();
-graphQLServer.use('/', graphQLHTTP({
-  graphiql: true,
-  pretty: true,
-  schema: Schema,
-}));
-graphQLServer.listen(GRAPHQL_PORT, () => console.log(
-  `GraphQL Server is now running on http://localhost:${GRAPHQL_PORT}`
-));
+// We respond to all GraphQL requests from `/graphql` using the
+// `express-graphql` middleware, which we pass our schema to.
+app.use('/graphql', graphqlHttp({schema: schema}))
 
-// Serve the Relay app
-var compiler = webpack({
-  entry: path.resolve(__dirname, 'js', 'app.js'),
-  module: {
-    loaders: [
-      {
-        exclude: /node_modules/,
-        loader: 'babel',
-        query: {
-          plugins: ['./build/babelRelayPlugin'],
-        },
-        test: /\.js$/,
-      }
-    ]
-  },
-  output: {filename: 'app.js', path: '/'}
-});
-var app = new WebpackDevServer(compiler, {
-  contentBase: '/public/',
-  proxy: {'/graphql': `http://localhost:${GRAPHQL_PORT}`},
-  publicPath: '/js/',
-  stats: {colors: true}
-});
-// Serve static resources
-app.use('/', express.static(path.resolve(__dirname, 'public')));
-app.listen(APP_PORT, () => {
-  console.log(`App is now running on http://localhost:${APP_PORT}`);
-});
+// The rest of the routes are just for serving static files
+app.use('/relay', express.static('./node_modules/react-relay/dist'))
+app.use('/', express.static('./public'))
+
+app.listen(3000, function() { console.log('Listening on 3000...') })
